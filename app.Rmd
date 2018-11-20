@@ -1,0 +1,96 @@
+---
+title: "India's Imports from Sub-Saharan Africa"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(shiny)
+library(tidyverse)
+library(plotly)
+library(reshape2)
+library(dplyr)
+library(readxl)
+library(scales)
+library(rsconnect)
+```
+
+```{r}
+india_import <- read_excel("india_import.xlsx")
+```
+
+
+Sidebar {.sidebar}
+=======================================================================
+
+
+```{r}
+
+hr()
+#select variables for product gorup
+selectInput(inputId = "group",
+                     label = "Select Product Group:",
+                     choices = unique(india_import$product_group),
+                     multiple = TRUE,
+                     selected = "Raw materials")
+hr()
+         #select variables for x axis
+         sliderInput(inputId = "time",
+                     label = "Select the years range:",
+                     min = 1989, max=2016,
+                     value = c(1989,2016),
+                     step=1)
+         
+ plotdata <- reactive({
+    req(input$group)
+    india_import %>% 
+      filter(product_group %in% input$group) %>% 
+      filter(Years %in% seq(input$time[1], input$time[2],1))
+ })
+```
+
+
+Dashboard
+=======================================================================
+
+
+columns {data-width=250}
+-----------------------------------------------------------------------
+
+### Value of India's imports of various product groups from Sub-Saharan Africa 
+
+```{r}
+renderPlotly({
+  ggplotly(ggplot(data=plotdata()%>% 
+      filter(Indicator== "Import (US$ Million)"), mapping = aes(x=Years, y=Imports))+
+    geom_line(aes(group=product_group, color= product_group), size= 1) + 
+      theme(axis.text.x = element_text(angle = 55, hjust=0.8, size = 8), 
+            legend.text = element_text(size=8),
+            legend.title = element_text(size=10, face="bold"),
+            axis.title = element_text(size=8, face="bold"),
+            axis.text.y = element_text(angle=45, size=8)) +
+      scale_y_continuous(label=comma)+labs(x="Years", y="Import Value(US$, MIllion)", color="Product Group")) 
+  })
+```
+
+### Percentage share of India's imports of various product groups from Sub-Saharan Africa 
+
+```{r}
+renderPlotly({
+  ggplotly(ggplot(data= plotdata() %>% filter(Indicator== "Import-Share"), mapping = aes(x=Years, y=Imports)) +
+  geom_line(aes(group=product_group, color= product_group), size= 1) + 
+       theme(axis.text.x = element_text(angle = 55, hjust=0.8, size=8), 
+            legend.text = element_text(size=8),
+            legend.title = element_text(size=10, face="bold"),
+            axis.title = element_text(size=8, face="bold"),
+            axis.text.y = element_text(angle=45, size=8)) +
+       labs(x="Years", y="Import Share (in Percentages)", color="Product Group") + 
+       scale_y_continuous(labels=scales::percent_format(accuracy = 1)))
+})
+
+```
+
